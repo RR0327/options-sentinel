@@ -1,160 +1,132 @@
-# Options Sentinel - Operating Guide
+# Options Sentinel - Operating Guide & Build Log
 
-This guide covers how to operate the Options Sentinel project, including running the backend server, testing the API endpoints, checking the raw Alpaca connection, and utilizing the Alpaca MCP server.
+## 1. Project Overview
+Options Sentinel is a paper-trading autonomous options agent. It pulls live Alpaca options chains, runs a scheduled multi-agent debate (bull vs. bear) gated by hard risk limits, executes via an MCP connector, logs and journals every decision, and exposes everything through a real-time dashboard endpoint.
 
-## 1. Environment Setup (Always run this first)
+### Architecture
+```text
+Market Data -> AI Agents -> Risk Gate -> Options Engine -> Alpaca MCP -> Paper Trading
+```
 
-Before running any Python commands, you must activate your virtual environment.
+### Key Features
+- **Multi-Agent Analysis:** Rule-based Bull vs. Bear debate for market sentiment.
+- **Risk-Controlled Execution:** Hard risk limits prevent the AI from making catastrophic trades.
+- **Options Spreads Selection:** Automatically constructs valid option spreads (e.g., BULL_CALL_SPREAD) based on the closest target delta and maximum liquidity.
+- **MCP Integration:** Uses the Model Context Protocol (MCP) to interact securely with Alpaca.
+- **Trade Audit Trail:** Saves full decision logic, entry points, and P&L monitoring to a local database.
 
+---
+
+## 2. Environment Setup & Configuration
+
+Before running any commands, you must configure your environment and activate your virtual environment.
+
+### 2.1 Activate Virtual Environment
 Open a terminal in the `Options-Sentinel` folder and run:
 ```powershell
 .\venv\Scripts\activate
 ```
 *(You should see `(venv)` appear at the beginning of your command prompt, indicating it's active).*
 
+### 2.2 Configure `.env`
+Ensure your `.env` file contains your paper trading credentials. **Never commit these keys!**
+```env
+ALPACA_API_KEY=your_key_here
+ALPACA_SECRET_KEY=your_secret_here
+ALPACA_PAPER=true
+```
+
+### 2.3 Install Dependencies
+```powershell
+pip install -r requirements.txt
+```
+
 ---
 
-## 2. Running the FastAPI Backend
+## 3. Running the System
 
-The backend is built with FastAPI and is located in the `backend/` folder. 
+Options Sentinel consists of a FastAPI backend (providing data endpoints) and a scheduled autonomous trading loop.
 
-**To start the server:**
+### 3.1 Start the FastAPI Backend
+Start the server in a dedicated terminal window:
 ```powershell
+cd Options-Sentinel
 uvicorn backend.main:app --reload
 ```
-The `--reload` flag means the server will automatically restart if you make any changes to the code.
+*(The `--reload` flag automatically restarts the server if you make code changes).*
 
-**To view the interactive API documentation:**
-Open your web browser and navigate to: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-This is an automatically generated Swagger UI where you can test your endpoints visually.
-
-### Available API Endpoints
-
-1. **Status Endpoint (`GET /`)**
-   - **URL:** `http://127.0.0.1:8000/`
-   - **Purpose:** Checks if the server is running.
-   - **Test via PowerShell:**
-     ```powershell
-     Invoke-RestMethod -Uri http://127.0.0.1:8000/
-     ```
-
-2. **Test Input/Output Endpoint (`POST /test`)**
-   - **URL:** `http://127.0.0.1:8000/test`
-   - **Purpose:** Demonstrates how to send JSON data to the server and get a response.
-   - **Test via PowerShell (Invoke-RestMethod):**
-     ```powershell
-     Invoke-RestMethod -Uri http://127.0.0.1:8000/test -Method POST -Headers @{"Content-Type"="application/json"} -Body '{"message": "Testing Options Sentinel", "number": 10}'
-     ```
-   - **Alternative Test via cURL (Windows CMD/PowerShell):**
-     ```powershell
-     curl.exe -X POST http://127.0.0.1:8000/test -H "Content-Type: application/json" -d "{\`"message\`": \`"Testing Options Sentinel\`", \`"number\`": 10}"
-     ```
-   - **Expected JSON Response:**
-     ```json
-     {
-       "received_message": "Testing Options Sentinel",
-       "doubled_number": 20,
-       "status": "success"
-     }
-     ```
-
----
-
-## 3. Testing the Alpaca Connection
-
-To ensure your `.env` API keys are working correctly with Alpaca's paper trading environment:
-
-**Run the test script:**
+### 3.2 Start the Autonomous Scheduler
+The scheduler repeatedly runs the trading loop (Market -> AI -> Risk -> Execute) during market hours.
+In a new terminal (with the virtual environment activated), run:
 ```powershell
-python test_alpaca.py
+cd Options-Sentinel
+python -m automation.scheduler
 ```
-**Expected Output:**
-```text
-Account Status: ACTIVE
-Cash: 100000
-Buying Power: 100000
-```
-If this fails, double-check that your `ALPACA_API_KEY` and `ALPACA_SECRET_KEY` inside the `Options-Sentinel/.env` file are correct.
+
+### 3.3 View the Frontend Dashboard
+The dashboard visualizes the current system state, pulling live from the FastAPI backend.
+1. Open your file explorer and navigate to `Options-Sentinel/dashboard/`.
+2. Double-click on `index.html` to open it in your browser.
+3. The dashboard will automatically fetch your live stats directly from your backend endpoints.
 
 ---
 
-## 4. Operating the Alpaca MCP Server (AI Integration)
+## 4. Testing Everything (End-to-End Validation)
 
-You also have the **Alpaca MCP Server (v2)** located in the sibling folder `alpaca-mcp-server/`. This server bridges your AI agents (like Claude or Cursor) to the Alpaca API so they can manage trades or check balances for you.
+You can validate every component of the system using automated tests, API endpoints, or the frontend UI.
 
-Because this is the new V2 Python server, it runs differently than older tutorials might suggest (no `npm` required).
-
-**How to connect it to your IDE (e.g., Cursor):**
-1. Open your IDE Settings and go to the **MCP** (Model Context Protocol) section.
-2. Add a new MCP server with the following settings:
-   - **Type:** `stdio`
-   - **Command:** `uvx`
-   - **Arguments:** `alpaca-mcp-server`
-   - **Environment Variables:**
-     - `ALPACA_API_KEY` = (Your Key)
-     - `ALPACA_SECRET_KEY` = (Your Secret Key)
-3. Restart your IDE to apply the changes.
-
-Once configured, you can directly ask the AI in your editor chat:
-> *"Show my Alpaca paper account balance."*
-> *"What is the current quote for AAPL via Alpaca?"*
-
-The AI will automatically invoke the server and retrieve real data for you. For more detailed instructions and configuration formats, refer to the `mcp_test.py` file.
-
----
-
-## 5. Next Work: Operating the Core Modules (Phase 5 - 7)
-
-With the core codebase scaffolded, the project now has internal Market Data, AI Agent Reasoning, and a Risk Gate. You can operate these modules directly via tests.
-
-**Test the Market Data Engine:**
+### 4.1 Automated Tests (Pytest)
+Pytest exercises the internal modules individually and together.
 ```powershell
+# Test the Alpaca Connection
+pytest -s tests/test_connection.py
+
+# Test the Market Data & Regime Detection
 pytest -s tests/test_market.py
-pytest -s tests/test_indicators.py
 pytest -s tests/test_regime.py
-```
-*(This pulls live/historical data from Alpaca, calculates technical indicators, and determines if the market is Bullish, Bearish, or Neutral).*
 
-**Test the AI Agent Chain:**
-```powershell
+# Test the AI Agent Chain & Risk Gate
 pytest -s tests/test_agents.py
-```
-*(This forces a 'Bullish' market state through the Market Agent -> Bull Agent -> Bear Agent -> Risk Agent -> Decision Agent, resulting in a simulated trade decision).*
-
-**Test the Risk Gate (The Final Authority):**
-```powershell
 pytest -s tests/test_risk.py
+
+# Test Options Strategy & Monitoring
+pytest -s tests/test_options.py
+pytest -s tests/test_monitoring.py
+
+# Full Integration Test (One Command)
+pytest -s tests/test_full_system.py
 ```
-*(This tests that the `risk_gate` will correctly `APPROVE` safe trades within the $500 max loss limit, and instantly `REJECT` bad trades with low confidence or high risk).*
+
+### 4.2 API Endpoint Testing (Swagger UI)
+The system exposes a unified `/api/dashboard` endpoint for the frontend.
+1. Ensure the backend is running (`uvicorn backend.main:app --reload`).
+2. Open Swagger UI at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
+3. Locate the `GET /api/dashboard` endpoint and click **Try it out** -> **Execute**.
+
+**Sample Output (JSON Response):**
+```json
+{
+    "system": {"status": "ACTIVE", "mcp": "CONNECTED", "alpaca": "CONNECTED"},
+    "market": {"symbol": "SPY", "regime": "BULLISH", "confidence": 0.82},
+    "agents": {"bull": "BUY", "bear": "CAUTION", "risk": "APPROVED"},
+    "trade": {"strategy": "BULL_CALL_SPREAD", "status": "READY"}
+}
+```
+
+### 4.3 Frontend UI Testing
+The `dashboard/app.js` file handles the visual representation.
+- **Sample Input (Network Request):** The frontend issues a `fetch('http://127.0.0.1:8000/api/dashboard')` command.
+- **Sample Output (UI Render):** Once the JSON is received, DOM elements (e.g., `#system-status`, `#market-regime`) are populated dynamically, updating the on-screen dashboard blocks.
 
 ---
 
-## 6. Phase 8-12: The Autonomous Loop and Dashboard
+## 5. Hackathon Demo Script (6-Scene Order)
 
-With the final phases complete, the system now features real Options Contract construction, Position Monitoring, an active Trade Journal, and an autonomous trading cycle that runs from start to finish.
+If presenting this project, follow this curated flow to demonstrate full capabilities:
 
-**Test the Options Engine:**
-```powershell
-pytest -s tests/test_options.py
-```
-*(Confirms that the system converts a "BULLISH" sentiment into a concrete "BULL_CALL_SPREAD" JSON order block).*
-
-**Test the Trade Lifecycle Monitoring:**
-```powershell
-pytest -s tests/test_monitoring.py
-```
-*(Tests the exit engine and verifies that trades are correctly logged to `database/trades.json` and `database/decisions.json`).*
-
-**Test the Full Autonomous Trading Loop:**
-```powershell
-pytest -s tests/test_trading_loop.py
-```
-*(This triggers the master loop inside `automation/trading_loop.py` which hits every single module sequentially: Market Data -> Agent Debate -> Risk Gate -> Options Spread -> Order Manager -> MCP Connector).*
-
-### Viewing the Real-Time Dashboard
-You can now visualize your account, live market sentiment, and active positions through the lightweight HTML dashboard built in Phase 11.
-
-1. Make sure your FastAPI backend is running: `uvicorn backend.main:app --reload`
-2. Open your file explorer, navigate to `Options-Sentinel/dashboard/`.
-3. Double click on `index.html` to open it in Google Chrome or any browser.
-4. The dashboard will automatically fetch your live stats directly from your backend endpoints every 60 seconds!
+1. **System Health:** Open the dashboard and show the **ACTIVE** system status and connected MCP/Alpaca indicators.
+2. **Market Intelligence:** Show the live Market Regime (e.g., "BULLISH") and its algorithmic confidence score.
+3. **AI Agent Debate:** Walk through the Bull/Bear opinions (e.g., Bull says BUY, Bear says CAUTION) and demonstrate that the Risk Agent ultimately gave APPROVAL based on strict position-sizing limits.
+4. **Strategy Formulation:** Highlight the chosen strategy (e.g., `BULL_CALL_SPREAD`) generated by the Options Engine.
+5. **MCP Execution:** Switch to the Alpaca Paper Trading dashboard (Orders tab) and show the order successfully submitted via the MCP Connector.
+6. **Trade Journal:** Open `database/trades.json` and `database/decisions.json` to prove every decision and logic branch was durably recorded for compliance.

@@ -1,15 +1,20 @@
-import json
 from datetime import datetime
-
-FILE = "database/trades.json"
+from database.database import SessionLocal
+from database.models import TradeModel
 
 def save_trade(trade):
-    trade["time"] = str(datetime.now())
+    db = SessionLocal()
     try:
-        with open(FILE, "r") as f:
-            trades = json.load(f)
-    except Exception:
-        trades = []
-    trades.append(trade)
-    with open(FILE, "w") as f:
-        json.dump(trades, f, indent=4)
+        db_trade = TradeModel(
+            time=datetime.utcnow(),
+            symbol=trade.get("symbol", "SPY"),
+            strategy=trade.get("strategy", "UNKNOWN"),
+            status=trade.get("status", "UNKNOWN")
+        )
+        db.add(db_trade)
+        db.commit()
+    except Exception as e:
+        print(f"Error saving trade to DB: {e}")
+        db.rollback()
+    finally:
+        db.close()
