@@ -1,0 +1,4 @@
+MAX_RISK_PER_TRADE = 0.005  # 0.5% of account
+MAX_DAILY_LOSS = 0.02       # 2% daily loss
+MAX_OPEN_POSITIONS = 3
+MAX_ACCOUNT_EXPOSURE = 0.30 # 30%
