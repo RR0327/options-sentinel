@@ -9,9 +9,13 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Options Sentinel API", description="AI Options Trading Agent", version="1.0")
 
+import os
+
+frontend_url = os.environ.get("FRONTEND_URL", "*")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[frontend_url] if frontend_url != "*" else ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

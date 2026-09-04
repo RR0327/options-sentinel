@@ -2,6 +2,7 @@
 # Exit on error
 set -o errexit
 # Install dependencies (Useful if using this as a combined build/start script)
+cd Options-Sentinel
 echo "Installing dependencies..."
 pip install -r requirements.txt
 # Create database tables based on SQLAlchemy models before starting the server
