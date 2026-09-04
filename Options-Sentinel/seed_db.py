@@ -9,8 +9,16 @@ from database.database import SessionLocal, engine
 from database.models import Base, TradeModel, DecisionModel
 
 def seed_database():
-    print("Seeding database with dummy data...")
+    print("Checking if database needs seeding...")
     db = SessionLocal()
+    
+    # Check if data already exists to avoid duplicates on every restart
+    if db.query(TradeModel).first():
+        print("Database already contains data. Skipping seeding.")
+        db.close()
+        return
+        
+    print("Database is empty. Seeding with dummy data...")
     
     # 1. Seed Decisions (AI Agents)
     decisions = []

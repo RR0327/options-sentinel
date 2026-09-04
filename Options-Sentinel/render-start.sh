@@ -17,5 +17,9 @@ except Exception as e:
     print('Continuing with server startup...', file=sys.stderr)
 "
 
+# Seed the database with dummy data if it's empty
+echo "Running database seed..."
+python seed_db.py
+
 # Start the FastAPI server
 uvicorn backend.main:app --host 0.0.0.0 --port $PORT
